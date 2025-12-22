@@ -5,15 +5,17 @@ var ROM: [4096]u8 = undefined;
 // 0x000 to 0x1FF should be unused
 
 var V: [16]u8 = undefined; // Vx registers
-var I: u16 = undefined; // I register
+var I: u16 = undefined; // I register (only the last 12 bit are used)
 
 var delay: u8 = undefined;
 var sound: u8 = undefined;
 
 var PC: u16 = 512; // program counter (starts at 0x200 (512))
-var SP: u8 = undefined;
 
+var SP: u8 = undefined;
 var stack: [16]u16 = undefined;
+
+var display: [64][32]bool = undefined;
 
 pub fn main() !void {
     std.debug.print("ROM length = {}, {}\n", .{
