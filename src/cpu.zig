@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const display = @import("./display.zig");
+pub const Display = @import("./display.zig").Display;
 const Stack = @import("./stack.zig").Stack;
 const InstructionKind = @import("./instruction.zig").InstructionKind;
 const Instruction = @import("./instruction.zig").Instruction;
@@ -22,7 +22,7 @@ const CPU = struct {
 
     stack: Stack(u16) = Stack(u16).init(),
 
-    display: display.Display = .{},
+    display: Display = .{},
 
     keypad: [16]bool = .{false} ** 16,
     is_waiting_for_key: bool = false,
@@ -232,14 +232,14 @@ const CPU = struct {
             },
             0xD => { // DXYN
                 inst.kind = InstructionKind.DRW;
-                const x_coord = self.V[inst.X] % display.DISPLAY_WIDTH;
-                const y_coord = self.V[inst.Y] % display.DISPLAY_HEIGHT;
+                const x_coord = self.V[inst.X] % Display.WIDTH;
+                const y_coord = self.V[inst.Y] % Display.HEIGHT;
                 for (0..inst.N) |row| {
                     const bits = self.RAM[self.I + row];
 
                     for (0..8) |col| {
-                        const x = (x_coord + @as(u8, @truncate(col))) % display.DISPLAY_WIDTH;
-                        const y = (y_coord + @as(u8, @truncate(row))) % display.DISPLAY_HEIGHT;
+                        const x = (x_coord + @as(u8, @truncate(col))) % Display.WIDTH;
+                        const y = (y_coord + @as(u8, @truncate(row))) % Display.HEIGHT;
                         const bit: u1 = @truncate((bits >> (7 - @as(u3, @truncate(col)))) & 0x01);
                         const collision = self.display.set_pixel(x, y, bit == 1);
 

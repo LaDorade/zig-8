@@ -2,12 +2,12 @@ const std = @import("std");
 
 const prog = @import("./cpu.zig");
 
-fn show_display(display: *prog.display.Display) !void {
+fn show_display(display: *prog.Display) !void {
     const stdout = std.fs.File.stdout();
 
-    for (0..prog.display.DISPLAY_HEIGHT) |row| {
-        for (0..prog.display.DISPLAY_WIDTH) |col| {
-            const pix_val = display.pixels[prog.display.DISPLAY_WIDTH * row + col];
+    for (0..prog.Display.HEIGHT) |row| {
+        for (0..prog.Display.WIDTH) |col| {
+            const pix_val = display.pixels[prog.Display.WIDTH * row + col];
             if (pix_val) {
                 _ = try stdout.write("█");
             } else {
@@ -37,8 +37,11 @@ pub fn main() !void {
     var cpu = prog.cpu;
     try cpu.load_RAM(rom_data);
 
+    const clock_speed = 700; // hz
     while (true) {
         try cpu.tick();
         try show_display(&cpu.display);
+
+        std.Thread.sleep(std.time.ns_per_s / clock_speed);
     }
 }
