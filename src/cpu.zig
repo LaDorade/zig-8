@@ -85,6 +85,14 @@ const CPU = struct {
         try self.decode_and_execute(instVal);
     }
 
+    const DecodeError = error{
+        Unknown_0x0XXX_Instruction,
+        Unknown_0x8XYI_Instruction,
+        Unknown_0xEXXX_Instruction,
+        Unknown_0xF0XX_Instruction,
+        Unknown_Instruction,
+    };
+
     fn decode_and_execute(self: *CPU, instVal: u16) !void {
         var inst: Instruction = .{
             .kind = undefined,
@@ -106,7 +114,7 @@ const CPU = struct {
                         inst.kind = InstructionKind.RET;
                         self.PC = try self.stack.pop();
                     },
-                    else => @panic("Impossible instruction"),
+                    else => return DecodeError.Unknown_0x0XXX_Instruction,
                 }
             },
             0x1 => { // 1NNN
@@ -205,7 +213,7 @@ const CPU = struct {
                         self.V[inst.X] = self.V[inst.Y];
                         self.V[inst.X] <<= 1;
                     },
-                    else => @panic("Impossible 8XY. instruction"),
+                    else => return DecodeError.Unknown_0x8XYI_Instruction,
                 }
             },
             0x9 => { // 9XY0
@@ -263,9 +271,7 @@ const CPU = struct {
                             _ = self.next();
                         }
                     },
-                    else => {
-                        @panic("Impossible EX.. instruction");
-                    },
+                    else => return DecodeError.Unknown_0xEXXX_Instruction,
                 }
             },
             0xF => { // FX..
@@ -319,12 +325,10 @@ const CPU = struct {
                             self.V[index] = self.RAM[self.I + index];
                         }
                     },
-                    else => {
-                        @panic("Impossible FX.. instruction");
-                    },
+                    else => return DecodeError.Unknown_0xF0XX_Instruction,
                 }
             },
-            else => @panic("Impossible instruction"),
+            else => return DecodeError.Unknown_Instruction,
         }
     }
 };

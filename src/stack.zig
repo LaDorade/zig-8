@@ -4,6 +4,11 @@ const assert = std.debug.assert;
 pub fn Stack(comptime T: anytype) type {
     const max_stack_size = 16;
 
+    const StackError = error{
+        EmptyStack,
+        FullStack,
+    };
+
     return struct {
         index: usize = 0,
         stack: [max_stack_size]T,
@@ -18,14 +23,14 @@ pub fn Stack(comptime T: anytype) type {
         const Self = @This();
         pub fn pop(self: *Self) !T {
             if (self.stack.len <= 0 or self.index <= 0) {
-                return error.EmptyStack;
+                return StackError.EmptyStack;
             }
             self.index -= 1;
             return self.stack[self.index + 1];
         }
         pub fn add(self: *Self, item: T) !void {
             if (self.index >= max_stack_size) {
-                return error.StackFull;
+                return StackError.FullStack;
             }
             self.index += 1;
             self.stack[self.index] = item;
