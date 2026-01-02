@@ -20,10 +20,14 @@ fn show_display(display: *prog.Display) !void {
 }
 
 pub fn main() !void {
-    var general_purpose_allocator: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    const gpa = general_purpose_allocator.allocator();
-    const args = try std.process.argsAlloc(gpa);
-    defer std.process.argsFree(gpa, args);
+    var gpallocStruct = std.heap.DebugAllocator(.{}){};
+    var ar = std.heap.ArenaAllocator.init(gpallocStruct.allocator());
+    defer ar.deinit();
+
+    const areno = ar.allocator();
+
+    const args = try std.process.argsAlloc(areno);
+    defer std.process.argsFree(areno, args);
 
     if (args.len != 2) {
         std.log.err("Must provide a ROM path", .{});
@@ -31,8 +35,11 @@ pub fn main() !void {
     }
 
     const file_path = args[1];
-    const rom_data = try std.fs.cwd().readFileAlloc(gpa, file_path, 4096);
-    defer gpa.free(rom_data);
+    const rom_data = try std.fs.cwd().readFileAlloc(
+        areno,
+        file_path,
+        4096,
+    );
 
     var cpu = prog.cpu;
     try cpu.load_RAM(rom_data);
