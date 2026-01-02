@@ -2,6 +2,10 @@ const std = @import("std");
 
 const prog = @import("./cpu.zig");
 
+fn sleep_ms(time_ms: u64) void {
+    std.Thread.sleep(time_ms * std.time.ns_per_ms);
+}
+
 fn show_display(display: *prog.Display) !void {
     const stdout = std.fs.File.stdout();
 
@@ -20,8 +24,8 @@ fn show_display(display: *prog.Display) !void {
 }
 
 pub fn main() !void {
-    var gpallocStruct = std.heap.DebugAllocator(.{}){};
-    var ar = std.heap.ArenaAllocator.init(gpallocStruct.allocator());
+    var debugAlloc = std.heap.DebugAllocator(.{}){};
+    var ar = std.heap.ArenaAllocator.init(debugAlloc.allocator());
     defer ar.deinit();
 
     const areno = ar.allocator();
@@ -44,11 +48,29 @@ pub fn main() !void {
     var cpu = prog.cpu;
     try cpu.load_RAM(rom_data);
 
-    const clock_speed = 700; // hz
-    while (true) {
-        try cpu.tick();
-        try show_display(&cpu.display);
+    // TODO: make variable
+    const clock_freq_hz = 700;
+    const display_freq_hz = 60;
+    const display_period_ms = std.time.ms_per_s / display_freq_hz;
 
-        std.Thread.sleep(std.time.ns_per_s / clock_speed);
+    var previous_ms: i64 = 0;
+    while (true) {
+        const current_ms = std.time.milliTimestamp();
+
+        // match screen speed
+        const delta_ms = current_ms - previous_ms;
+        if (delta_ms > display_period_ms) {
+            previous_ms = current_ms;
+
+            try show_display(&cpu.display);
+            // TODO: update timers
+
+            // number of cpu tick per screen tick
+            for (0..(clock_freq_hz / display_freq_hz)) |_| {
+                try cpu.tick();
+            }
+        } else {
+            sleep_ms(1);
+        }
     }
 }
