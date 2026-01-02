@@ -19,6 +19,15 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the chip8 emulator");
     run_step.dependOn(&run_exe.step);
 
+    const rom_path = b.option(
+        []const u8,
+        "ROM_Path",
+        "Relative path to your rom",
+    ) orelse {
+        return;
+    };
+    run_exe.addArgs(&.{rom_path});
+
     // TESTING
     const test_step = b.step("test", "Run unit tests");
     for (test_targets) |target| {
