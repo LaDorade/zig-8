@@ -6,10 +6,18 @@ fn sleep_ms(time_ms: u64) void {
     std.Thread.sleep(time_ms * std.time.ns_per_ms);
 }
 
+const buffer_size = prog.Display.WIDTH * (prog.Display.HEIGHT + 2);
+var buffer: [buffer_size]u8 = undefined;
+var stdout_writer = std.fs.File.stdout().writer(&buffer);
+const stdout = &stdout_writer.interface;
 fn show_display(display: *prog.Display) !void {
-    const stdout = std.fs.File.stdout();
+    try stdout.flush();
+
+    for (0..prog.Display.WIDTH + 1) |_| _ = try stdout.write("_"); // top border
+    _ = try stdout.write("\n");
 
     for (0..prog.Display.HEIGHT) |row| {
+        _ = try stdout.write("|"); // left border
         for (0..prog.Display.WIDTH) |col| {
             const pix_val = display.pixels[prog.Display.WIDTH * row + col];
             if (pix_val) {
@@ -18,9 +26,14 @@ fn show_display(display: *prog.Display) !void {
                 _ = try stdout.write(".");
             }
         }
+        _ = try stdout.write("|"); // right border
         _ = try stdout.write("\n");
     }
-    _ = try stdout.writeAll("\n\n");
+    for (0..prog.Display.WIDTH) |_| _ = try stdout.write("–"); // bot border
+    _ = try stdout.write("\n");
+
+    _ = try stdout.write("\n\n");
+    try stdout.flush();
 }
 
 pub fn main() !void {
