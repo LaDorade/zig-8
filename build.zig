@@ -28,18 +28,29 @@ pub fn build(b: *std.Build) void {
     // RUNNING
     const run_exe = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run the chip8 emulator");
-    const rom_path = b.option(
-        []const u8,
-        "ROM_Path",
-        "Relative path to your rom",
-    );
-    if (rom_path) |path| {
-        run_exe.addArgs(&.{path});
+
+    {
+        // I like this but the next option is cleaner
+        // Ex: zig build run -DROM_Path=./ROMs...
+        // const rom_path = b.option(
+        //     []const u8,
+        //     "ROM_Path",
+        //     "Relative path to your rom",
+        // );
+        // if (rom_path) |path| {
+        //     run_exe.addArg(path);
+        //     run_step.dependOn(&run_exe.step);
+        // } else {
+        //     run_step.dependOn(
+        //         &b.addFail("The -DROM_Path=... option is required for the run step").step,
+        //     );
+        // }
+
+        // Ex: zig build -- ./ROMs/...
+        if (b.args) |args| {
+            run_exe.addArgs(args);
+        }
         run_step.dependOn(&run_exe.step);
-    } else {
-        run_step.dependOn(
-            &b.addFail("The -DROM_Path=... option is required for the run step").step,
-        );
     }
 
     // TESTING
