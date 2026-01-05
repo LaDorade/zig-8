@@ -1,25 +1,26 @@
 const std = @import("std");
+const zig8 = @import("zig8");
 
-const prog = @import("./cpu.zig");
+const Display = zig8.Display;
 
 fn sleep_ms(time_ms: u64) void {
     std.Thread.sleep(time_ms * std.time.ns_per_ms);
 }
 
-const buffer_size = prog.Display.WIDTH * (prog.Display.HEIGHT + 2);
+const buffer_size = Display.WIDTH * (Display.HEIGHT + 2);
 var buffer: [buffer_size]u8 = undefined;
 var stdout_writer = std.fs.File.stdout().writer(&buffer);
 const stdout = &stdout_writer.interface;
-fn show_display(display: *prog.Display) !void {
+fn show_display(display: *Display) !void {
     try stdout.flush();
 
-    for (0..prog.Display.WIDTH + 1) |_| _ = try stdout.write("_"); // top border
+    for (0..Display.WIDTH + 1) |_| _ = try stdout.write("_"); // top border
     _ = try stdout.write("\n");
 
-    for (0..prog.Display.HEIGHT) |row| {
+    for (0..Display.HEIGHT) |row| {
         _ = try stdout.write("|"); // left border
-        for (0..prog.Display.WIDTH) |col| {
-            const pix_val = display.pixels[prog.Display.WIDTH * row + col];
+        for (0..Display.WIDTH) |col| {
+            const pix_val = display.pixels[Display.WIDTH * row + col];
             if (pix_val) {
                 _ = try stdout.write("█");
             } else {
@@ -29,7 +30,7 @@ fn show_display(display: *prog.Display) !void {
         _ = try stdout.write("|"); // right border
         _ = try stdout.write("\n");
     }
-    for (0..prog.Display.WIDTH) |_| _ = try stdout.write("–"); // bot border
+    for (0..Display.WIDTH) |_| _ = try stdout.write("–"); // bot border
     _ = try stdout.write("\n");
 
     _ = try stdout.write("\n\n");
@@ -58,14 +59,15 @@ pub fn main() !void {
         4096,
     );
 
-    var cpu = prog.cpu;
+    var cpu = zig8.CPU{};
     try cpu.load_RAM(rom_data);
 
-    // TODO: make variable
-    const clock_freq_hz = 700;
+    const cycle_freq_hz = 700;
     const display_freq_hz = 60;
     const display_period_ms = std.time.ms_per_s / display_freq_hz;
 
+    cpu.setTargetCyclePerSecond(cycle_freq_hz);
+    cpu.setTargetDisplayFreq(display_freq_hz);
     var previous_ms: i64 = 0;
     while (true) {
         const current_ms = std.time.milliTimestamp();
@@ -76,12 +78,7 @@ pub fn main() !void {
             previous_ms = current_ms;
 
             try show_display(&cpu.display);
-            // TODO: update timers
-
-            // number of cpu tick per screen tick
-            for (0..(clock_freq_hz / display_freq_hz)) |_| {
-                try cpu.tick();
-            }
+            try cpu.tick();
         } else {
             sleep_ms(1);
         }

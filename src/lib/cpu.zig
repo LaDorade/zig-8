@@ -5,7 +5,7 @@ const Stack = @import("./stack.zig").Stack;
 const InstructionKind = @import("./instruction.zig").InstructionKind;
 const Instruction = @import("./instruction.zig").Instruction;
 
-const CPU = struct {
+pub const CPU = struct {
     /// 0x000 (0) to 0xFFF (4095).
     /// 0x000 to 0x1FF should be unused.
     RAM: [4096]u8 = .{0} ** 4096,
@@ -26,6 +26,11 @@ const CPU = struct {
 
     keypad: [16]bool = .{false} ** 16,
     is_waiting_for_key: bool = false,
+
+    // defaults to 700
+    cycle_per_second: u32 = 700,
+    // defaults to 60, usually not changed
+    display_freq: u32 = 60,
 
     pub fn load_RAM(self: *CPU, data: []const u8) !void {
         if (data.len > (self.RAM.len - 0x200)) {
@@ -51,13 +56,6 @@ const CPU = struct {
         }
     }
 
-    /// FETCH-DECODE-RUN Loop
-    /// Could be on a single unique function,
-    /// but I did it that way to follow the structure
-    pub fn info() void {
-        // noop
-    }
-
     /// Fetch the two next value to compose the instruction
     fn next(self: *CPU) [2]u8 {
         const instVals: [2]u8 = .{
@@ -79,8 +77,30 @@ const CPU = struct {
         return instVal;
     }
 
-    /// Run the fetch-decode-execute loop
+    // The CPU will try his best to match the freq per second
+    // Usually between 500 and 1000 Hz
+    pub fn setTargetCyclePerSecond(self: *CPU, freq: u32) void {
+        self.cycle_per_second = freq;
+    }
+
+    pub fn setTargetDisplayFreq(self: *CPU, freq: u32) void {
+        self.display_freq = freq;
+    }
+
+    // Method to call X times per second
+    // This handle the number of cycle and timers
     pub fn tick(self: *CPU) !void {
+        // number of cpu cycle per screen tick
+        for (0..(self.cycle_per_second / self.display_freq)) |_| {
+            try self.cycle();
+        }
+        // update timers
+        if (self.delay > 0) self.delay -= 1;
+        if (self.sound > 0) self.sound -= 1;
+    }
+
+    /// Run the fetch-decode-execute loop
+    fn cycle(self: *CPU) !void {
         const instVal = self.fetch();
         try self.decode_and_execute(instVal);
     }
@@ -332,5 +352,3 @@ const CPU = struct {
         }
     }
 };
-
-pub const cpu: CPU = .{};
