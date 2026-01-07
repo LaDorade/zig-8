@@ -10,6 +10,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const term = b.addModule("term", .{
+        .root_source_file = b.path("./src/term/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "zig-8",
         .root_module = b.createModule(.{
@@ -19,6 +25,10 @@ pub fn build(b: *std.Build) void {
                 .{
                     .name = "zig8",
                     .module = zig8,
+                },
+                .{
+                    .name = "term",
+                    .module = term,
                 },
             },
         }),
