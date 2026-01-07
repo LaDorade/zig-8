@@ -35,7 +35,27 @@ fn show_display(term: *Term, display: *Display) !void {
     try term.flush();
 }
 
+var run = std.atomic.Value(bool).init(true);
+
+fn handleSig(_: c_int) callconv(.c) void {
+    run.store(false, .unordered);
+}
+
+// Signals handlers
+fn setupSig() void {
+    const action = std.posix.Sigaction{
+        .handler = .{ .handler = handleSig },
+        .mask = std.posix.sigemptyset(),
+        .flags = 0,
+    };
+
+    std.posix.sigaction(std.posix.SIG.INT, &action, null);
+    std.posix.sigaction(std.posix.SIG.TERM, &action, null);
+}
+
 pub fn main() !void {
+    setupSig();
+
     var debugAlloc = std.heap.DebugAllocator(.{}){};
     var ar = std.heap.ArenaAllocator.init(debugAlloc.allocator());
     defer ar.deinit();
@@ -84,7 +104,7 @@ pub fn main() !void {
     var previous_ms: i64 = 0;
     var input_buffer: [1]u8 = undefined;
     @memset(&input_buffer, 0);
-    while (true) {
+    while (run.load(.unordered)) {
         const current_ms = std.time.milliTimestamp();
 
         // input handling
