@@ -90,10 +90,8 @@ pub fn main() !void {
         // input handling
         _ = try tty.read(&input_buffer);
         defer @memset(&input_buffer, 0x0);
-        if (input_buffer[0] == 'q') {
-            break;
-        } else if (input_buffer[0] != 0x0) {
-            try term.print("{s}", .{input_buffer});
+        if (input_buffer[0] == 'q' or (input_buffer[0] == 'c' & '\x1F')) { // q or ctrl+c
+            return;
         }
 
         // match screen speed
