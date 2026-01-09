@@ -2,6 +2,10 @@ const std = @import("std");
 
 const zig8 = @import("zig8");
 const Term = @import("term").Term();
+const rl = @cImport({
+    @cInclude("raylib.h");
+});
+
 const parseArgs = @import("./parseArgs.zig").parseArgs;
 
 const Display = zig8.Display;
@@ -9,8 +13,10 @@ const Display = zig8.Display;
 fn sleep_ms(time_ms: u64) void {
     std.Thread.sleep(time_ms * std.time.ns_per_ms);
 }
+
+/// TODO: impl lazy prints (only if changed inst);
 fn show_display(term: *Term, display: *Display) !void {
-    _ = try term.write("\x1B[H");
+    _ = try term.write("\x1B[H"); // go to top left
     try term.flush();
 
     for (0..Display.WIDTH + 1) |_| _ = try term.write("_"); // top border

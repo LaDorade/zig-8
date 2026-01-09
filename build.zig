@@ -33,6 +33,15 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+
+    const rl = b.dependency("raylib", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const raylib_artifact = rl.artifact("raylib");
+    exe.root_module.linkLibrary(raylib_artifact);
+    b.installArtifact(raylib_artifact);
+
     b.installArtifact(exe);
 
     // RUNNING
