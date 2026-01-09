@@ -59,13 +59,8 @@ pub fn main() !void {
     var debugAlloc = std.heap.DebugAllocator(.{}){};
     var ar = std.heap.ArenaAllocator.init(debugAlloc.allocator());
     defer ar.deinit();
-
     const areno = ar.allocator();
-
-    const args = try std.process.argsAlloc(areno);
-    defer std.process.argsFree(areno, args);
-
-    const parsed_args = parseArgs(args);
+    const parsed_args = try parseArgs(areno);
 
     const rom_data = try std.fs.cwd().readFileAlloc(
         areno,

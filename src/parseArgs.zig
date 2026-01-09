@@ -24,7 +24,10 @@ const CLIArgs = struct {
     cycle: u32 = 700,
 };
 
-pub fn parseArgs(args: []const [:0]const u8) CLIArgs {
+pub fn parseArgs(allocator: std.mem.Allocator) !CLIArgs {
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
     var cliArgs = CLIArgs{};
     PROGRAM_NAME = std.fs.path.basename(args[0]);
 
