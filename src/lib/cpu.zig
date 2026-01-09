@@ -29,7 +29,7 @@ pub const CPU = struct {
     // defaults to 700
     cycle_per_second: u32 = 700,
     // defaults to 60, usually not changed
-    display_freq: u32 = 60,
+    display_freq_hz: u32 = 60,
 
     pub fn load_RAM(self: *CPU, data: []const u8) !void {
         if (data.len > (self.RAM.len - 0x200)) {
@@ -83,14 +83,14 @@ pub const CPU = struct {
     }
 
     pub fn setTargetDisplayFreq(self: *CPU, freq: u32) void {
-        self.display_freq = freq;
+        self.display_freq_hz = freq;
     }
 
     // Method to call X times per second
     // This handle the number of cycle and timers
     pub fn tick(self: *CPU) !void {
         // number of cpu cycle per screen tick
-        for (0..(self.cycle_per_second / self.display_freq)) |_| {
+        for (0..(self.cycle_per_second / self.display_freq_hz)) |_| {
             try self.cycle();
         }
         // update timers

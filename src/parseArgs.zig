@@ -20,15 +20,24 @@ fn display_usage() noreturn {
 }
 
 const CLIArgs = struct {
-    rom_path: []const u8 = undefined,
+    allocator: std.mem.Allocator,
+    rom_path: []u8 = undefined,
     cycle: u32 = 700,
+
+    const Self = @This();
+    pub fn free(self: *Self) void {
+        self.allocator.free(self.rom_path);
+    }
 };
 
+/// Alloc the rom_path on the heap
 pub fn parseArgs(allocator: std.mem.Allocator) !CLIArgs {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    var cliArgs = CLIArgs{};
+    var cliArgs = CLIArgs{
+        .allocator = allocator,
+    };
     PROGRAM_NAME = std.fs.path.basename(args[0]);
 
     if (args.len < 2) {
@@ -36,7 +45,8 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CLIArgs {
         display_usage();
     }
 
-    cliArgs.rom_path = args[1];
+    cliArgs.rom_path = try allocator.alloc(u8, args[1].len);
+    @memcpy(cliArgs.rom_path, args[1]);
     var index: usize = 2;
     while (index < args.len) {
         if (std.mem.startsWith(u8, args[index], "--cycle")) {
