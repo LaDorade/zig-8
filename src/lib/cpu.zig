@@ -25,7 +25,6 @@ pub const CPU = struct {
     display: Display = .{},
 
     keypad: [16]bool = .{false} ** 16,
-    is_waiting_for_key: bool = false,
 
     // defaults to 700
     cycle_per_second: u32 = 700,
@@ -112,6 +111,16 @@ pub const CPU = struct {
         Unknown_0xF0XX_Instruction,
         Unknown_Instruction,
     };
+
+    /// Checks if any key is pressed, then return it index
+    fn isKeyPressed(self: *CPU) ?u4 {
+        for (self.keypad, 0..) |val, index| {
+            if (val) {
+                return @truncate(index);
+            }
+        }
+        return null;
+    }
 
     fn decode_and_execute(self: *CPU, instVal: u16) !void {
         var inst: Instruction = .{
@@ -302,8 +311,11 @@ pub const CPU = struct {
                     },
                     0x0A => {
                         inst.kind = InstructionKind.LDKX;
-                        self.is_waiting_for_key = true;
-                        unreachable;
+                        if (self.isKeyPressed()) |k| {
+                            self.V[inst.X] = k;
+                        } else {
+                            self.PC -= 2; // loop on this instruction
+                        }
                     },
                     0x15 => {
                         inst.kind = InstructionKind.LD;
