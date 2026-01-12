@@ -25,6 +25,7 @@ pub const CPU = struct {
     display: Display = .{},
 
     keypad: [16]bool = .{false} ** 16,
+    waiting_release_key: ?u4 = null,
 
     // defaults to 700
     cycle_per_second: u32 = 700,
@@ -336,9 +337,17 @@ pub const CPU = struct {
                     },
                     0x0A => {
                         inst.kind = InstructionKind.LDKX;
-                        if (self.isKeyPressed()) |k| {
-                            self.V[inst.X] = k;
+                        if (self.waiting_release_key) |k| {
+                            if (!self.keypad[k]) {
+                                self.V[inst.X] = k;
+                                self.waiting_release_key = null;
+                            } else {
+                                self.PC -= 2; // loop on this instruction
+                            }
                         } else {
+                            if (self.isKeyPressed()) |k| {
+                                self.waiting_release_key = k;
+                            }
                             self.PC -= 2; // loop on this instruction
                         }
                     },
@@ -372,7 +381,7 @@ pub const CPU = struct {
                     },
                     0x55 => {
                         inst.kind = InstructionKind.LDM;
-                        for (0..inst.X + 1) |index| {
+                        for (0..@as(u32, inst.X) + 1) |index| {
                             self.RAM[self.I] = self.V[index];
 
                             // chip8 specific
@@ -381,7 +390,7 @@ pub const CPU = struct {
                     },
                     0x65 => {
                         inst.kind = InstructionKind.LMR;
-                        for (0..inst.X + 1) |index| {
+                        for (0..@as(u32, inst.X) + 1) |index| {
                             self.V[index] = self.RAM[self.I];
 
                             // chip8 specific
