@@ -90,13 +90,14 @@ pub const CPU = struct {
     // Method to call X times per second
     // This handle the number of cycle and timers
     pub fn tick(self: *CPU) !void {
+        // update timers
+        if (self.delay > 0) self.delay -= 1;
+        if (self.sound > 0) self.sound -= 1;
+
         // number of cpu cycle per screen tick
         for (0..(self.cycle_per_second / self.display_freq_hz)) |_| {
             try self.cycle();
         }
-        // update timers
-        if (self.delay > 0) self.delay -= 1;
-        if (self.sound > 0) self.sound -= 1;
     }
 
     /// Run the fetch-decode-execute loop
@@ -173,7 +174,7 @@ pub const CPU = struct {
             },
             0x5 => { // 5XY0
                 inst.kind = InstructionKind.SEXY;
-                if (self.V[inst.X] == self.V[inst.X]) {
+                if (self.V[inst.X] == self.V[inst.Y]) {
                     _ = self.next();
                 }
             },
@@ -361,7 +362,7 @@ pub const CPU = struct {
                     },
                     0x1E => {
                         inst.kind = InstructionKind.ADI;
-                        self.I += self.V[inst.X];
+                        self.I = @addWithOverflow(self.I, self.V[inst.X])[0];
                     },
                     0x29 => {
                         inst.kind = InstructionKind.LDF;
@@ -382,18 +383,20 @@ pub const CPU = struct {
                     0x55 => {
                         inst.kind = InstructionKind.LDM;
                         for (0..@as(u32, inst.X) + 1) |index| {
-                            self.RAM[self.I] = self.V[index];
+                            // self.RAM[self.I + index] = self.V[index];
 
-                            // chip8 specific
+                            // chip8 "memory quirk"
+                            self.RAM[self.I] = self.V[index];
                             self.I += 1;
                         }
                     },
                     0x65 => {
                         inst.kind = InstructionKind.LMR;
                         for (0..@as(u32, inst.X) + 1) |index| {
-                            self.V[index] = self.RAM[self.I];
+                            // self.V[index] = self.RAM[self.I + index];
 
-                            // chip8 specific
+                            // chip8 "memory quirk"
+                            self.V[index] = self.RAM[self.I];
                             self.I += 1;
                         }
                     },
