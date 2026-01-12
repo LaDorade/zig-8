@@ -81,7 +81,7 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CLIArgs {
             };
             cliArgs.scale = scaleValint;
         }
-        index += index;
+        index += 1;
     }
     return cliArgs;
 }
