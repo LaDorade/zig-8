@@ -143,7 +143,10 @@ pub const CPU = struct {
                         inst.kind = InstructionKind.RET;
                         self.PC = try self.stack.pop();
                     },
-                    else => return DecodeError.Unknown_0x0XXX_Instruction,
+                    else => {
+                        std.log.err("Unknown 0x0 instruction '0x{X:4}'", .{instVal});
+                        return DecodeError.Unknown_0x0XXX_Instruction;
+                    },
                 }
             },
             0x1 => { // 1NNN
@@ -191,14 +194,23 @@ pub const CPU = struct {
                     0x1 => { // 8XY1
                         inst.kind = InstructionKind.ORXY;
                         self.V[inst.X] |= self.V[inst.Y];
+
+                        // chip8 specific:
+                        self.V[0xF] = 0;
                     },
                     0x2 => { // 8XY2
                         inst.kind = InstructionKind.ANXY;
                         self.V[inst.X] &= self.V[inst.Y];
+
+                        // chip8 specific:
+                        self.V[0xF] = 0;
                     },
                     0x3 => { // 8XY3
                         inst.kind = InstructionKind.XORX;
                         self.V[inst.X] ^= self.V[inst.Y];
+
+                        // chip8 specific:
+                        self.V[0xF] = 0;
                     },
                     0x4 => { // 8XY4
                         inst.kind = InstructionKind.ADXY;
@@ -269,14 +281,27 @@ pub const CPU = struct {
             },
             0xD => { // DXYN
                 inst.kind = InstructionKind.DRW;
+
+                self.V[0xF] = 0; // somehow, nobody mentionned that
+
                 const x_coord = self.V[inst.X] % Display.WIDTH;
                 const y_coord = self.V[inst.Y] % Display.HEIGHT;
                 for (0..inst.N) |row| {
                     const bits = self.RAM[self.I + row];
 
+                    const y = (y_coord + @as(u8, @truncate(row)));
+                    // chip8 specific
+                    if (y >= Display.HEIGHT) {
+                        continue;
+                    }
+
                     for (0..8) |col| {
-                        const x = (x_coord + @as(u8, @truncate(col))) % Display.WIDTH;
-                        const y = (y_coord + @as(u8, @truncate(row))) % Display.HEIGHT;
+                        const x = (x_coord + @as(u8, @truncate(col)));
+                        // chip8 specific
+                        if (x >= Display.WIDTH) {
+                            continue;
+                        }
+
                         const bit: u1 = @truncate((bits >> (7 - @as(u3, @truncate(col)))) & 0x01);
                         const collision = self.display.set_pixel(x, y, bit == 1);
 
@@ -348,13 +373,19 @@ pub const CPU = struct {
                     0x55 => {
                         inst.kind = InstructionKind.LDM;
                         for (0..inst.X + 1) |index| {
-                            self.RAM[self.I + index] = self.V[index];
+                            self.RAM[self.I] = self.V[index];
+
+                            // chip8 specific
+                            self.I += 1;
                         }
                     },
                     0x65 => {
                         inst.kind = InstructionKind.LMR;
                         for (0..inst.X + 1) |index| {
-                            self.V[index] = self.RAM[self.I + index];
+                            self.V[index] = self.RAM[self.I];
+
+                            // chip8 specific
+                            self.I += 1;
                         }
                     },
                     else => return DecodeError.Unknown_0xF0XX_Instruction,
