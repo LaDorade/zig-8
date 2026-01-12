@@ -3,7 +3,7 @@ const std = @import("std");
 var PROGRAM_NAME: []const u8 = undefined;
 const USAGE_FMT =
     \\
-    \\Usage: {s} ROM_PATH [--cycle=freq]
+    \\Usage: {s} ROM_PATH [--cycle=freq] [--scale=scale]
     \\
     \\Arguments:
     \\  ROM_PATH    relative or absolute path to the ROM you want to play
@@ -11,6 +11,8 @@ const USAGE_FMT =
     \\Options:
     \\  --cycle=freq number of instruction processed each second by the cpu
     \\      Defaults to 700
+    \\  --scale=scale scale multiplicator for pixels
+    \\      Default to 10
     \\
 ;
 
@@ -23,6 +25,7 @@ const CLIArgs = struct {
     allocator: std.mem.Allocator,
     rom_path: []u8 = undefined,
     cycle: u32 = 700,
+    scale: u16 = 10,
 
     const Self = @This();
     pub fn free(self: *Self) void {
@@ -63,6 +66,20 @@ pub fn parseArgs(allocator: std.mem.Allocator) !CLIArgs {
                 display_usage();
             };
             cliArgs.cycle = cycleValInt;
+        } else if (std.mem.startsWith(u8, args[index], "--scale")) {
+            var scaleIter = std.mem.splitAny(u8, args[index], "=");
+
+            _ = scaleIter.next() orelse unreachable;
+            const scaleVal = scaleIter.next() orelse {
+                std.log.err("Not enough arguments for scale", .{});
+                display_usage();
+            };
+
+            const scaleValint = std.fmt.parseInt(u16, scaleVal, 10) catch {
+                std.log.err("Invalid number \"{s}\" for scale", .{scaleVal});
+                display_usage();
+            };
+            cliArgs.scale = scaleValint;
         }
         index += index;
     }
