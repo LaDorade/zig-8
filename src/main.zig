@@ -109,7 +109,14 @@ pub fn main() !void {
         @as(c_int, Display.HEIGHT * scale),
         "snoup !",
     );
+    defer rl.CloseWindow();
     rl.SetTargetFPS(display_freq_hz);
+
+    rl.InitAudioDevice();
+    defer rl.CloseAudioDevice();
+
+    const sound = rl.LoadSound("./assets/oneC4.wav");
+    defer rl.UnloadSound(sound);
 
     // raylib loop
     while (!rl.WindowShouldClose() and run.load(.unordered)) {
@@ -138,6 +145,15 @@ pub fn main() !void {
                     );
                 } else {}
             }
+        }
+
+        // sound
+        if (cpu.sound > 0) {
+            if (!rl.IsSoundPlaying(sound)) {
+                rl.PlaySound(sound);
+            }
+        } else {
+            rl.StopSound(sound);
         }
     }
 
