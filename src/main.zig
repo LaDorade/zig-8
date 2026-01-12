@@ -30,6 +30,54 @@ fn setupSig() void {
     std.posix.sigaction(std.posix.SIG.TERM, &action, null);
 }
 
+/// Row by row, following COSMAC VIP Keypad, to left qwerty
+/// [1, 2, 3, C] -> 1, 2, 3, 4
+/// [4, 5, 6, D] -> q, w, e, r
+/// [7, 8, 9, E] -> a, s, d, f
+/// [A, 0, B, F] -> z, x, c, v
+const cosmacToQwerty = .{
+    .ONE = rl.KEY_ONE, // 0x1
+    .TWO = rl.KEY_TWO, // 0x2
+    .THREE = rl.KEY_THREE, // 0x3
+    .C = rl.KEY_FOUR, // 0x4
+
+    .FOUR = rl.KEY_Q, // 0x4
+    .FIVE = rl.KEY_W, // 0x5
+    .SIX = rl.KEY_E, // 0x6
+    .D = rl.KEY_R, // 0xD
+
+    .SEVEN = rl.KEY_A, // 0x7
+    .EIGHT = rl.KEY_S, // 0x8
+    .NINE = rl.KEY_D, // 0x9
+    .E = rl.KEY_F, // 0xE
+
+    .A = rl.KEY_Z, // 0xA
+    .ZERO = rl.KEY_X, // 0x0
+    .B = rl.KEY_C, // 0xB
+    .F = rl.KEY_V, // 0xF
+};
+
+fn setKeys(cpu: *zig8.CPU) void {
+    cpu.keypad = .{
+        rl.IsKeyDown(cosmacToQwerty.ZERO),
+        rl.IsKeyDown(cosmacToQwerty.ONE),
+        rl.IsKeyDown(cosmacToQwerty.TWO),
+        rl.IsKeyDown(cosmacToQwerty.THREE),
+        rl.IsKeyDown(cosmacToQwerty.FOUR),
+        rl.IsKeyDown(cosmacToQwerty.FIVE),
+        rl.IsKeyDown(cosmacToQwerty.SIX),
+        rl.IsKeyDown(cosmacToQwerty.SEVEN),
+        rl.IsKeyDown(cosmacToQwerty.EIGHT),
+        rl.IsKeyDown(cosmacToQwerty.NINE),
+        rl.IsKeyDown(cosmacToQwerty.A),
+        rl.IsKeyDown(cosmacToQwerty.B),
+        rl.IsKeyDown(cosmacToQwerty.C),
+        rl.IsKeyDown(cosmacToQwerty.D),
+        rl.IsKeyDown(cosmacToQwerty.E),
+        rl.IsKeyDown(cosmacToQwerty.F),
+    };
+}
+
 pub fn main() !void {
     setupSig();
 
@@ -65,19 +113,18 @@ pub fn main() !void {
 
     // raylib loop
     while (!rl.WindowShouldClose() and run.load(.unordered)) {
+        // input handling
+        setKeys(&cpu);
+
+        // drawing management
         rl.BeginDrawing();
         defer rl.EndDrawing();
         rl.ClearBackground(rl.BROWN);
 
+        // cpu
         try cpu.tick(); // raylib handles the 60 fps
 
-        if (rl.IsKeyPressed(rl.KEY_A)) { // its qwerty -> need to press q
-            std.debug.print("A pressed !", .{});
-        }
-        if (rl.IsKeyReleased(rl.KEY_A)) { // its qwerty -> need to press q
-            std.debug.print("A released !", .{});
-        }
-
+        // dipslay
         for (0..Display.HEIGHT) |row| {
             for (0..Display.WIDTH) |col| {
                 const pix_val = cpu.display.pixels[Display.WIDTH * row + col];
