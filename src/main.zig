@@ -95,13 +95,18 @@ pub fn main() !void {
         4096,
     );
 
-    var cpu = zig8.CPU{};
-    try cpu.load_RAM(rom_data);
+    var memory = zig8.Memory{};
+    try memory.load_RAM(rom_data);
 
-    const cycle_freq_hz = cliArgs.cycle;
-    const display_freq_hz = 60;
-    cpu.setTargetCyclePerSecond(cycle_freq_hz);
-    cpu.setTargetDisplayFreq(display_freq_hz);
+    var cpu = zig8.CPU{
+        .memory = &memory,
+    };
+
+    var clock = zig8.Clock.init(
+        &cpu,
+        &memory,
+        cliArgs.cycle,
+    );
 
     const scale = cliArgs.scale;
     rl.InitWindow(
@@ -110,7 +115,7 @@ pub fn main() !void {
         "snoup !",
     );
     defer rl.CloseWindow();
-    rl.SetTargetFPS(display_freq_hz);
+    rl.SetTargetFPS(zig8.Clock.display_freq_hz);
 
     rl.InitAudioDevice();
     defer rl.CloseAudioDevice();
@@ -129,7 +134,7 @@ pub fn main() !void {
         rl.ClearBackground(rl.BROWN);
 
         // cpu
-        try cpu.tick(); // raylib handles the 60 fps
+        try clock.tick();
 
         // dipslay
         for (0..Display.HEIGHT) |row| {
@@ -148,7 +153,7 @@ pub fn main() !void {
         }
 
         // sound
-        if (cpu.sound > 0) {
+        if (memory.sound > 0) {
             if (!rl.IsSoundPlaying(sound)) {
                 rl.PlaySound(sound);
             }

@@ -1,24 +1,20 @@
 const std = @import("std");
 
-pub const Display = @import("./display.zig").Display;
+const Display = @import("./display.zig").Display;
 const Stack = @import("./stack.zig").Stack;
 const InstructionKind = @import("./instruction.zig").InstructionKind;
 const Instruction = @import("./instruction.zig").Instruction;
+const Memory = @import("./memory.zig").Memory;
 
 pub const CPU = struct {
-    /// 0x000 (0) to 0xFFF (4095).
-    /// 0x000 to 0x1FF should be unused.
-    RAM: [4096]u8 = .{0} ** 4096,
+    memory: *Memory,
     /// program counter (starts at 0x200 (512))
     PC: u16 = 0x200,
 
     /// Vx registers
     V: [16]u8 = .{0} ** 16,
-    /// I register (only the last 12 bit are relevant)
+    /// I register
     I: u12 = 0,
-
-    delay: u8 = 0,
-    sound: u8 = 0,
 
     stack: Stack(u16) = Stack(u16).init(),
 
@@ -27,40 +23,11 @@ pub const CPU = struct {
     keypad: [16]bool = .{false} ** 16,
     waiting_release_key: ?u4 = null,
 
-    // defaults to 700
-    cycle_per_second: u32 = 700,
-    // defaults to 60, usually not changed
-    display_freq_hz: u32 = 60,
-
-    pub fn load_RAM(self: *CPU, data: []const u8) !void {
-        if (data.len > (self.RAM.len - 0x200)) {
-            return error.DATA_TOO_BIG;
-        }
-        for (data, 0..) |byte, i| {
-            self.RAM[0x200 + i] = byte;
-        }
-    }
-
-    /// Refactor, return the ram instead of just printing it
-    pub fn dump_RAM(self: *CPU) void {
-        const print = @import("std").debug.print;
-        for (self.RAM, 0..) |byte, i| {
-            if (byte == 0x0) {
-                continue;
-            }
-            if (i % 8 == 0) {
-                print("\n", .{});
-            }
-            print("0x{X:0>4} ", .{byte});
-            print("{c} ", .{byte});
-        }
-    }
-
     /// Fetch the two next value to compose the instruction
     fn next(self: *CPU) [2]u8 {
         const instVals: [2]u8 = .{
-            self.RAM[self.PC],
-            self.RAM[self.PC + 1],
+            self.memory.get(self.PC),
+            self.memory.get(self.PC + 1),
         };
         self.PC += 2;
 
@@ -77,31 +44,8 @@ pub const CPU = struct {
         return instVal;
     }
 
-    // The CPU will try his best to match the freq per second
-    // Usually between 500 and 1000 Hz
-    pub fn setTargetCyclePerSecond(self: *CPU, freq: u32) void {
-        self.cycle_per_second = freq;
-    }
-
-    pub fn setTargetDisplayFreq(self: *CPU, freq: u32) void {
-        self.display_freq_hz = freq;
-    }
-
-    // Method to call X times per second
-    // This handle the number of cycle and timers
-    pub fn tick(self: *CPU) !void {
-        // update timers
-        if (self.delay > 0) self.delay -= 1;
-        if (self.sound > 0) self.sound -= 1;
-
-        // number of cpu cycle per screen tick
-        for (0..(self.cycle_per_second / self.display_freq_hz)) |_| {
-            try self.cycle();
-        }
-    }
-
     /// Run the fetch-decode-execute loop
-    fn cycle(self: *CPU) !void {
+    pub fn cycle(self: *CPU) !void {
         const instVal = self.fetch();
         try self.decode_and_execute(instVal);
     }
@@ -289,7 +233,7 @@ pub const CPU = struct {
                 const x_coord = self.V[inst.X] % Display.WIDTH;
                 const y_coord = self.V[inst.Y] % Display.HEIGHT;
                 for (0..inst.N) |row| {
-                    const bits = self.RAM[self.I + row];
+                    const bits = self.memory.get(@truncate(self.I + row));
 
                     const y = (y_coord + @as(u8, @truncate(row)));
                     // chip8 specific
@@ -334,7 +278,7 @@ pub const CPU = struct {
                 switch (instVal & 0x00FF) {
                     0x07 => {
                         inst.kind = InstructionKind.LDTX;
-                        self.V[inst.X] = self.delay;
+                        self.V[inst.X] = self.memory.delay;
                     },
                     0x0A => {
                         inst.kind = InstructionKind.LDKX;
@@ -354,11 +298,11 @@ pub const CPU = struct {
                     },
                     0x15 => {
                         inst.kind = InstructionKind.LD;
-                        self.delay = self.V[inst.X];
+                        self.memory.delay = self.V[inst.X];
                     },
                     0x18 => {
                         inst.kind = InstructionKind.ST;
-                        self.sound = self.V[inst.X];
+                        self.memory.sound = self.V[inst.X];
                     },
                     0x1E => {
                         inst.kind = InstructionKind.ADI;
@@ -376,27 +320,27 @@ pub const CPU = struct {
                         const o = self.V[inst.X] - h * 100 - t * 10;
 
                         // store to memory
-                        self.RAM[self.I] = h;
-                        self.RAM[self.I + 1] = t;
-                        self.RAM[self.I + 2] = o;
+                        self.memory.set(self.I, h);
+                        self.memory.set(self.I + 1, t);
+                        self.memory.set(self.I + 2, o);
                     },
                     0x55 => {
                         inst.kind = InstructionKind.LDM;
                         for (0..@as(u32, inst.X) + 1) |index| {
-                            // self.RAM[self.I + index] = self.V[index];
+                            // self.bus.set(self.I + index, self.V[index]);
 
                             // chip8 "memory quirk"
-                            self.RAM[self.I] = self.V[index];
+                            self.memory.set(self.I, self.V[index]);
                             self.I += 1;
                         }
                     },
                     0x65 => {
                         inst.kind = InstructionKind.LMR;
                         for (0..@as(u32, inst.X) + 1) |index| {
-                            // self.V[index] = self.RAM[self.I + index];
+                            // self.V[index] = self.bus.get(self.I + index);
 
                             // chip8 "memory quirk"
-                            self.V[index] = self.RAM[self.I];
+                            self.V[index] = self.memory.get(self.I);
                             self.I += 1;
                         }
                     },
