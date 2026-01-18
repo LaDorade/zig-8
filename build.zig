@@ -4,11 +4,23 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
+    const libzig8only = b.option(
+        bool,
+        "libZig8Only",
+        "Only install the zig8 library.",
+    ) orelse false;
+
     const zig8 = b.addModule("zig8", .{
         .root_source_file = b.path("./src/lib/root.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    const libzig8 = b.addLibrary(.{
+        .name = "zig8",
+        .root_module = zig8,
+    });
+    b.installArtifact(libzig8);
 
     const term = b.addModule("term", .{
         .root_source_file = b.path("./src/term/root.zig"),
@@ -40,9 +52,11 @@ pub fn build(b: *std.Build) void {
     });
     const raylib_artifact = rl.artifact("raylib");
     exe.root_module.linkLibrary(raylib_artifact);
-    b.installArtifact(raylib_artifact);
 
-    b.installArtifact(exe);
+    if (!libzig8only) {
+        b.installArtifact(raylib_artifact);
+        b.installArtifact(exe);
+    }
 
     // RUNNING
     const run_exe = b.addRunArtifact(exe);
